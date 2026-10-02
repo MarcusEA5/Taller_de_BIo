@@ -14,6 +14,12 @@ void setup() {
   Serial.begin(115200);
   delay(3000); // Pausa para estabilizar el puerto USB-CDC
 
+   //Configuracion de atenuación del ADC para que trabaje hasta el rango de los 2,5V
+  analogSetPinAttenuation(pinGSR , ADC_11db);
+
+  //Por las dudas setear a 12 bits la lectura para que el ADC vaya de 0 a 4095
+  analogReadResolution(12);
+
   // Inicializamos el bus I2C
   Wire.begin(I2C_SDA, I2C_SCL);
   
