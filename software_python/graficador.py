@@ -2,6 +2,58 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtCore
 import numpy as np
 
+class FormularioMedico(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Planilla del Voluntario")
+        self.resize(450, 400)
+        self.setStyleSheet("background-color: #2c3e50; color: white; font-size: 11pt;")
+        
+        layout = QtWidgets.QFormLayout(self)
+        layout.setLabelAlignment(QtCore.Qt.AlignRight)
+        
+        self.edad = QtWidgets.QSpinBox(); self.edad.setRange(15, 100); self.edad.setValue(22)
+        self.genero = QtWidgets.QComboBox(); self.genero.addItems(["Masculino", "Femenino", "Otro"])
+        self.sueno = QtWidgets.QComboBox(); self.sueno.addItems(["4 a 6 horas", "6 a 8 horas", "8 o más horas"])
+        self.cafeina = QtWidgets.QComboBox(); self.cafeina.addItems(["No","Café", "mate +2 termos", "energizantes"])
+        self.alcohol = QtWidgets.QComboBox(); self.alcohol.addItems(["No", "Sí"])
+        self.fuma = QtWidgets.QComboBox(); self.fuma.addItems(["No", "Sí"])
+        self.actividad = QtWidgets.QComboBox(); self.actividad.addItems(["No", "1h intensa", "2-3h media"])
+        self.alimentacion = QtWidgets.QComboBox(); self.alimentacion.addItems(["No", "Sí"])
+
+        # Estilo para los inputs
+        estilo_input = "background-color: #34495e; padding: 5px; border-radius: 3px;"
+        for widget in [self.edad, self.genero, self.sueno, self.cafeina, self.alcohol, self.fuma, self.actividad, self.alimentacion]:
+            widget.setStyleSheet(estilo_input)
+
+        layout.addRow("Edad:", self.edad)
+        layout.addRow("Género:", self.genero)
+        layout.addRow("Horas de sueño/día:", self.sueno)
+        layout.addRow("¿Consume cafeína regularmente?:", self.cafeina)
+        layout.addRow("¿Consume alcohol regularmente?:", self.alcohol)
+        layout.addRow("¿Fuma?:", self.fuma)
+        layout.addRow("¿Realiza actividad física?:", self.actividad)
+        layout.addRow("¿Alimentación saludable?:", self.alimentacion)
+
+        # Botón de guardar
+        self.btn_guardar = QtWidgets.QPushButton("Guardar y Comenzar Prueba")
+        self.btn_guardar.setStyleSheet("background-color: #27ae60; padding: 10px; font-weight: bold;")
+        self.btn_guardar.clicked.connect(self.accept)
+        layout.addRow(self.btn_guardar)
+
+    def obtener_datos(self):
+        return {
+            "Edad": str(self.edad.value()),
+            "Género": self.genero.currentText(),
+            "Sueño": self.sueno.currentText(),
+            "Cafeína": self.cafeina.currentText(),
+            "Alcohol": self.alcohol.currentText(),
+            "Fuma": self.fuma.currentText(),
+            "Actividad Física": self.actividad.currentText(),
+            "Alimentación": self.alimentacion.currentText()
+        }
+
+
 class Graficador:
     def __init__(self):
         # 1. Inicializar la aplicación Qt
@@ -115,12 +167,12 @@ class Graficador:
         self.win.show()
 
     def iniciar_prueba(self):
-        # Pedimos los metadatos al iniciar
-        edad, ok1 = QtWidgets.QInputDialog.getInt(self.win, "Datos del Sujeto", "Edad del Voluntario:", 22, 10, 100, 1)
-        self.edad_sujeto = str(edad) if ok1 else "N/D"
-        
-        genero, ok2 = QtWidgets.QInputDialog.getItem(self.win, "Datos del Sujeto", "Género:", ["Masculino", "Femenino", "Otro"], 0, False)
-        self.genero_sujeto = genero if ok2 else "N/D"
+        # Abrimos la planilla médica
+        formulario = FormularioMedico(self.win)
+        if formulario.exec_(): # Si el usuario presiona "Guardar"
+            self.datos_medicos = formulario.obtener_datos()
+        else:
+            return # Si cierra la ventana sin guardar, cancelamos el inicio
 
         # Actualizamos variables y la interfaz
         self.is_recording = True

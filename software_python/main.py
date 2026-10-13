@@ -84,8 +84,7 @@ def main():
                                 # Al hacer clic en grabar, se crea un archivo CSV con los metadatos del sujeto
                                 logger = almacenamiento_csv.GestorCSV(
                                     id_sujeto="Voluntario_Prueba",
-                                    edad=getattr(interfaz, 'edad_sujeto', "N/D"),
-                                    genero=getattr(interfaz, 'genero_sujeto', "N/D")
+                                    datos_medicos=getattr(interfaz, 'datos_medicos', {})
                                 )
                                 print("\n>>> [GRABACIÓN INICIADA] Archivo CSV creado con metadatos.")
                                 
