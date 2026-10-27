@@ -40,7 +40,7 @@ def main():
     print("Iniciando monitor bimodal PPG + GSR... Presione Ctrl+C para salir.")
     
     try:
-        with serial.Serial('COM11', 115200, timeout=1) as puerto_serial:
+        with serial.Serial('COM7', 115200, timeout=1) as puerto_serial:
             puerto_serial.reset_input_buffer()
             time.sleep(2)
             
