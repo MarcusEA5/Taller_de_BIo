@@ -1,0 +1,109 @@
+{
+  "version_formato": 2,
+  "id_sujeto": "01",
+  "inicio": "2026-10-27T17:00:06",
+  "planilla": {
+    "Codigo": "01",
+    "Fecha": "2026-10-27T17:00:06",
+    "Edad": 25,
+    "Sexo": "Masculino",
+    "Mano_dominante": "Derecha",
+    "Cafeina": "Hoy, hace menos de 3 h",
+    "Tabaco": "No fuma",
+    "Ejercicio": "Sí, hace más de 3 h",
+    "Ultima_comida": "Comió hace menos de 3 h",
+    "Sueno": "Entre 5 y 7 h",
+    "Medicacion_cardiovascular": "No",
+    "Antecedentes_cardiovasculares": "No",
+    "PA_sistolica": null,
+    "PA_diastolica": null,
+    "Consentimiento": true
+  },
+  "config": {
+    "FS": 200,
+    "BAUDRATE": 115200,
+    "PUERTO": null,
+    "VID_ESPRESSIF": 12346,
+    "TOLERANCIA_FS": 0.03,
+    "VENTANA_S": 10,
+    "PASO_S": 5,
+    "BANDA_PPG_HZ": [
+      0.5,
+      15.0
+    ],
+    "ORDEN_BUTTER": 2,
+    "SG_VENTANA_MS": 85,
+    "SG_ORDEN": 3,
+    "PICO_DISTANCIA_MIN_S": 0.3,
+    "PICO_DISTANCIA_REL_T0": 0.6,
+    "AUTOCORR_MIN": 0.3,
+    "PICO_PROMINENCIA_REL": 0.4,
+    "A_BUSQUEDA_PREVIA_S": 0.3,
+    "A_ANTES_DE_VMAX_S": 0.15,
+    "SEGMENTO_MAX_S": 0.6,
+    "B_MAX_DESDE_A_S": 0.2,
+    "C_MAX_DESDE_B_S": 0.2,
+    "D_MAX_DESDE_C_S": 0.2,
+    "E_MAX_DESDE_D_S": 0.25,
+    "PROMINENCIA_ONDAS_REL": 0.04,
+    "RR_MIN_S": 0.33,
+    "RR_MAX_S": 1.5,
+    "RR_TOLERANCIA": 0.3,
+    "AMP_A_RANGO": [
+      0.5,
+      2.0
+    ],
+    "BA_RANGO": [
+      -2.5,
+      -0.1
+    ],
+    "SQI_CORR_MIN": 0.85,
+    "MIN_LATIDOS_VALIDOS": 5,
+    "FRACCION_MIN_VALIDOS": 0.5,
+    "UMBRAL_DEDO_CUENTAS": 30000,
+    "SATURACION_CUENTAS": 262143,
+    "GSR_R1_OHM": 197800.0,
+    "GSR_VEXC_V": 3.3,
+    "GSR_K_DIV": 1.0,
+    "GSR_CONTACTO_MIN": 0.8,
+    "PROTOCOLO": [
+      [
+        "1. Reposo Basal",
+        180
+      ],
+      [
+        "2. Test Stroop",
+        180
+      ],
+      [
+        "3. Pausa",
+        120
+      ],
+      [
+        "4. Aim Trainer",
+        180
+      ],
+      [
+        "5. Recuperación",
+        180
+      ]
+    ],
+    "FASE_BASAL": "1. Reposo Basal",
+    "FASE_INACTIVA": "Inactivo",
+    "FASE_TRANSICION": "Transicion",
+    "EDAD_TAKAZAWA": [
+      0.023,
+      -1.515
+    ],
+    "MOSTRAR_EDAD_VASCULAR": false,
+    "MIN_LATIDOS_EDAD": 60
+  },
+  "cierre": {
+    "fin": "2026-10-27T17:09:53",
+    "muestras_perdidas": 0,
+    "fs_medida_hz": 198.8734135616918,
+    "ai_basal_mediana": -0.9709525982683218,
+    "n_latidos_basales": 128,
+    "edad_vascular_takazawa_sin_validar": 23.65423485789905
+  }
+}

@@ -1,0 +1,10 @@
+# Entornos virtuales y cachés (no deben subirse al repositorio)
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pio/
+.vscode/
+
+# Datos de voluntarios: NUNCA subirlos a un repositorio público
+software_python/registros_csv/

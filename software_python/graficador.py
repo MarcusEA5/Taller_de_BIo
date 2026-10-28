@@ -1,254 +1,327 @@
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtWidgets, QtCore
-import numpy as np
+"""
+Interfaz gráfica (PyQt5 + pyqtgraph). No contiene lógica de procesamiento: solo muestra
+lo que le entrega el Orquestador y avisa (callbacks) cuándo empieza o termina una sesión.
 
-class FormularioMedico(QtWidgets.QDialog):
+Contrato con el Orquestador (duck typing):
+    is_recording, fase_actual, edad_vascular_texto      atributos que lee/escribe el orquestador
+    mostrar_ventana(res)                                resultado de cada ventana de 10 s
+    set_estado_adquisicion(ok, texto)                   estado del enlace con el ESP32
+    on_comenzar(datos_planilla) / on_finalizar()        callbacks que se asignan desde main.py
+"""
+import time
+from datetime import datetime
+
+import numpy as np
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtWidgets
+
+import config
+from almacenamiento_csv import id_valido
+
+ESTILO_ETIQUETA = "color: #ddd; font-size: 14px;"
+
+
+# ----------------------------------------------------------------------------
+# Formulario del voluntario
+# ----------------------------------------------------------------------------
+class FormularioVoluntario(QtWidgets.QDialog):
+    """Planilla previa a la sesión. Registra los factores que alteran la señal cardiovascular."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Planilla del Voluntario")
-        self.resize(450, 400)
-        self.setStyleSheet("background-color: #2c3e50; color: white; font-size: 11pt;")
-        
-        layout = QtWidgets.QFormLayout(self)
-        layout.setLabelAlignment(QtCore.Qt.AlignRight)
-        
-        self.edad = QtWidgets.QSpinBox(); self.edad.setRange(15, 100); self.edad.setValue(22)
-        self.genero = QtWidgets.QComboBox(); self.genero.addItems(["Masculino", "Femenino", "Otro"])
-        self.sueno = QtWidgets.QComboBox(); self.sueno.addItems(["4 a 6 horas", "6 a 8 horas", "8 o más horas"])
-        self.cafeina = QtWidgets.QComboBox(); self.cafeina.addItems(["No","Café", "mate +2 termos", "energizantes"])
-        self.alcohol = QtWidgets.QComboBox(); self.alcohol.addItems(["No", "Sí"])
-        self.fuma = QtWidgets.QComboBox(); self.fuma.addItems(["No", "Sí"])
-        self.actividad = QtWidgets.QComboBox(); self.actividad.addItems(["No", "1h intensa", "2-3h media"])
-        self.alimentacion = QtWidgets.QComboBox(); self.alimentacion.addItems(["No", "Sí"])
+        self.setWindowTitle("Planilla del voluntario")
+        lay = QtWidgets.QFormLayout(self)
 
-        # Estilo para los inputs
-        estilo_input = "background-color: #34495e; padding: 5px; border-radius: 3px;"
-        for widget in [self.edad, self.genero, self.sueno, self.cafeina, self.alcohol, self.fuma, self.actividad, self.alimentacion]:
-            widget.setStyleSheet(estilo_input)
+        self.f_codigo = QtWidgets.QLineEdit()
+        self.f_codigo.setPlaceholderText("Código seudonimizado, p. ej. V01 (no usar nombre ni DNI)")
+        self.f_edad = QtWidgets.QSpinBox()
+        self.f_edad.setRange(18, 100)                       # solo mayores de edad
+        self.f_edad.setValue(22)
+        self.f_sexo = self._combo(["Femenino", "Masculino", "Otro / prefiere no decir"])
+        self.f_mano = self._combo(["Derecha", "Izquierda", "Ambidiestro"])
+        self.f_cafeina = self._combo(["No consumió hoy", "Hoy, hace más de 3 h", "Hoy, hace menos de 3 h"])
+        self.f_tabaco = self._combo(["No fuma", "Fuma, no en las últimas 3 h", "Fumó en las últimas 3 h"])
+        self.f_ejercicio = self._combo(["Ninguno en 24 h", "Sí, hace más de 3 h", "Sí, hace menos de 3 h"])
+        self.f_comida = self._combo(["Ayuno de más de 3 h", "Comió hace menos de 3 h"])
+        self.f_sueno = self._combo(["Menos de 5 h", "Entre 5 y 7 h", "Más de 7 h"])
+        self.f_medicacion = self._combo(["No", "Sí"])
+        self.f_antecedentes = self._combo(["No", "Sí"])
+        self.f_pa_sis = QtWidgets.QSpinBox()
+        self.f_pa_sis.setRange(0, 260)
+        self.f_pa_sis.setSpecialValueText("No medida")
+        self.f_pa_dia = QtWidgets.QSpinBox()
+        self.f_pa_dia.setRange(0, 160)
+        self.f_pa_dia.setSpecialValueText("No medida")
+        self.f_consentimiento = QtWidgets.QCheckBox("Firmó el consentimiento informado")
 
-        layout.addRow("Edad:", self.edad)
-        layout.addRow("Género:", self.genero)
-        layout.addRow("Horas de sueño/día:", self.sueno)
-        layout.addRow("¿Consume cafeína regularmente?:", self.cafeina)
-        layout.addRow("¿Consume alcohol regularmente?:", self.alcohol)
-        layout.addRow("¿Fuma?:", self.fuma)
-        layout.addRow("¿Realiza actividad física?:", self.actividad)
-        layout.addRow("¿Alimentación saludable?:", self.alimentacion)
+        lay.addRow("Código de sujeto:", self.f_codigo)
+        lay.addRow("Edad (años):", self.f_edad)
+        lay.addRow("Sexo:", self.f_sexo)
+        lay.addRow("Mano dominante:", self.f_mano)
+        lay.addRow("Cafeína / mate:", self.f_cafeina)
+        lay.addRow("Tabaco:", self.f_tabaco)
+        lay.addRow("Ejercicio:", self.f_ejercicio)
+        lay.addRow("Última comida:", self.f_comida)
+        lay.addRow("Sueño de la última noche:", self.f_sueno)
+        lay.addRow("Medicación cardiovascular:", self.f_medicacion)
+        lay.addRow("Hipertensión / cardiopatía diagnosticada:", self.f_antecedentes)
+        lay.addRow("Presión sistólica (mmHg):", self.f_pa_sis)
+        lay.addRow("Presión diastólica (mmHg):", self.f_pa_dia)
+        lay.addRow("", self.f_consentimiento)
 
-        # Botón de guardar
-        self.btn_guardar = QtWidgets.QPushButton("Guardar y Comenzar Prueba")
-        self.btn_guardar.setStyleSheet("background-color: #27ae60; padding: 10px; font-weight: bold;")
-        self.btn_guardar.clicked.connect(self.accept)
-        layout.addRow(self.btn_guardar)
+        botones = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        botones.accepted.connect(self.accept)
+        botones.rejected.connect(self.reject)
+        lay.addRow(botones)
+
+    @staticmethod
+    def _combo(opciones):
+        c = QtWidgets.QComboBox()
+        c.addItems(opciones)
+        return c
+
+    def accept(self):
+        if not id_valido(self.f_codigo.text().strip()):
+            QtWidgets.QMessageBox.warning(self, "Código inválido",
+                                          "Usá un código de 2 a 20 caracteres (letras, números, _ o -), p. ej. V01.")
+            return
+        if not self.f_consentimiento.isChecked():
+            QtWidgets.QMessageBox.warning(self, "Consentimiento",
+                                          "No se puede iniciar la medición sin consentimiento informado firmado.")
+            return
+        super().accept()
 
     def obtener_datos(self):
         return {
-            "Edad": str(self.edad.value()),
-            "Género": self.genero.currentText(),
-            "Sueño": self.sueno.currentText(),
-            "Cafeína": self.cafeina.currentText(),
-            "Alcohol": self.alcohol.currentText(),
-            "Fuma": self.fuma.currentText(),
-            "Actividad Física": self.actividad.currentText(),
-            "Alimentación": self.alimentacion.currentText()
+            "Codigo": self.f_codigo.text().strip(),
+            "Fecha": datetime.now().isoformat(timespec="seconds"),
+            "Edad": self.f_edad.value(),
+            "Sexo": self.f_sexo.currentText(),
+            "Mano_dominante": self.f_mano.currentText(),
+            "Cafeina": self.f_cafeina.currentText(),
+            "Tabaco": self.f_tabaco.currentText(),
+            "Ejercicio": self.f_ejercicio.currentText(),
+            "Ultima_comida": self.f_comida.currentText(),
+            "Sueno": self.f_sueno.currentText(),
+            "Medicacion_cardiovascular": self.f_medicacion.currentText(),
+            "Antecedentes_cardiovasculares": self.f_antecedentes.currentText(),
+            "PA_sistolica": self.f_pa_sis.value() or None,
+            "PA_diastolica": self.f_pa_dia.value() or None,
+            "Consentimiento": True,
         }
 
 
+# ----------------------------------------------------------------------------
+# Ventana principal
+# ----------------------------------------------------------------------------
 class Graficador:
     def __init__(self):
-        # 1. Inicializar la aplicación Qt
-        self.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        pg.setConfigOption("background", "k")
+        pg.setConfigOption("foreground", "w")
+        self.app = pg.mkQApp("Monitor PPG + GSR")
 
-        # 2. Crear la ventana principal interactiva con Layout Horizontal
-        self.win = QtWidgets.QWidget()
-        self.win.setWindowTitle("Monitor Hemodinámico PPG + GSR")
-        self.win.resize(1200, 800)
-        self.win.setStyleSheet("background-color: black;")
-
-        # Dividimos la pantalla: Izquierda (Panel de control) | Derecha (Gráficos)
-        self.layout_principal = QtWidgets.QHBoxLayout(self.win)
-
-        # --- PANEL IZQUIERDO (Control e Interfaz) ---
-        self.widget_izq = QtWidgets.QWidget()
-        self.layout_izq = QtWidgets.QVBoxLayout(self.widget_izq)
-        self.layout_izq.setContentsMargins(0, 0, 0, 0)
-
-        # Panel de Biomarcadores
-        self.panel_texto = QtWidgets.QLabel("Esperando\nventana de 10s...")
-        self.panel_texto.setStyleSheet("color: white; font-family: Arial; padding: 10px;")
-        self.panel_texto.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
-        self.layout_izq.addWidget(self.panel_texto)
-
-        # --- ETIQUETA DE ESTADO DE MEDICIÓN ---
-        self.lbl_estado = QtWidgets.QLabel("ESTADO: EN ESPERA")
-        self.lbl_estado.setStyleSheet("color: #f39c12; font-weight: bold; font-size: 14pt; padding: 5px;")
-        self.lbl_estado.setAlignment(QtCore.Qt.AlignCenter)
-        self.layout_izq.addWidget(self.lbl_estado)
-
-        # --- BOTONES DE CONTROL DE PRUEBA ---
-        self.btn_comenzar = QtWidgets.QPushButton("▶ COMENZAR PRUEBA")
-        self.btn_comenzar.setStyleSheet("""
-            QPushButton { background-color: #27ae60; color: white; font-size: 12pt; font-weight: bold; padding: 10px; border-radius: 5px; }
-            QPushButton:hover { background-color: #2ecc71; }
-        """)
-        self.btn_comenzar.clicked.connect(self.iniciar_prueba)
-        self.layout_izq.addWidget(self.btn_comenzar)
-
-        self.btn_finalizar = QtWidgets.QPushButton("⏹ FINALIZAR PRUEBA")
-        self.btn_finalizar.setStyleSheet("""
-            QPushButton { background-color: #c0392b; color: white; font-size: 12pt; font-weight: bold; padding: 10px; border-radius: 5px; }
-            QPushButton:disabled { background-color: #7f8c8d; color: #bdc3c7; }
-        """)
-        self.btn_finalizar.setEnabled(False) # Arranca deshabilitado
-        self.btn_finalizar.clicked.connect(self.detener_prueba)
-        self.layout_izq.addWidget(self.btn_finalizar)
-
-        # --- BOTONERA DE FASES DEL EXPERIMENTO ---
-        self.label_fases = QtWidgets.QLabel("<b>Fases del Test:</b>")
-        self.label_fases.setStyleSheet("color: #aaaaaa; font-size: 10pt; margin-top: 10px;")
-        self.layout_izq.addWidget(self.label_fases)
-
-        self.fases_botones = {}
-        nombres_fases = ["1. Reposo Basal", "2. Test Stroop", "3. Pausa", "4. Aim Trainer", "5. Recuperación"]
-        
-        for nombre in nombres_fases:
-            btn = QtWidgets.QPushButton(nombre)
-            btn.setEnabled(False) # Apagados hasta que empiece la prueba
-            btn.setCheckable(True)
-            btn.setStyleSheet("""
-                QPushButton { background-color: #34495e; color: white; font-size: 9pt; padding: 5px; margin: 2px; border-radius: 4px; }
-                QPushButton:disabled { background-color: #1a252f; color: #555555; }
-                QPushButton:checked { background-color: #2980b9; color: white; font-weight: bold; }
-            """)
-            btn.clicked.connect(lambda checked, n=nombre, b=btn: self.seleccionar_fase(n, b))
-            self.layout_izq.addWidget(btn)
-            self.fases_botones[nombre] = btn
-
-        self.widget_izq.setFixedWidth(280) # Ancho fijo para no aplastar los gráficos
-        self.layout_principal.addWidget(self.widget_izq)
-
-        # Variables de estado internas
         self.is_recording = False
-        self.fase_actual = "Inactivo"
-        self.edad_vascular_fija = None
-        self.edad_sujeto = "N/D"
-        self.genero_sujeto = "N/D"
+        self.fase_actual = config.FASE_INACTIVA
+        self.edad_vascular_texto = "Esperando basal"
+        self.on_comenzar = None
+        self.on_finalizar = None
+        self._t_inicio_fase = time.monotonic()
+        self._duracion_min = dict(config.PROTOCOLO)
 
-        # --- PANEL DERECHO (Gráficos) ---
-        self.graficos = pg.GraphicsLayoutWidget()
-        self.layout_principal.addWidget(self.graficos)
+        self._crear_ventana()
+        self.ventana.show()
 
-        # Fila 1: Gráfico en tiempo real (Señal cruda)
-        self.plot_raw = self.graficos.addPlot(title="PPG Crudo (Tiempo Real rápido)")
-        self.plot_raw.showGrid(x=True, y=True)
-        self.curve_raw = self.plot_raw.plot(pen=pg.mkPen('y', width=2))
-        self.plot_raw.setMouseEnabled(x=False, y=False)
-        self.graficos.nextRow()
+        self._timer_fase = QtCore.QTimer()
+        self._timer_fase.timeout.connect(self._actualizar_cuenta)
+        self._timer_fase.start(500)
 
-        # Fila 2: Gráfico de ventana procesada (Estático, actualiza cada 10s)
-        self.plot_filt = self.graficos.addPlot(title="PPG Filtrado (Ventana de 10s)")
-        self.plot_filt.showGrid(x=True, y=True)
-        self.curve_filt = self.plot_filt.plot(pen=pg.mkPen('g', width=2))
-        self.graficos.nextRow()
+    # ---------------------------------------------------------------- construcción
+    def _etiqueta(self, texto, estilo=ESTILO_ETIQUETA):
+        e = QtWidgets.QLabel(texto)
+        e.setStyleSheet(estilo)
+        return e
 
-        # Fila 3: Gráfico de SDPPG con Puntos Fiduciarios (Analítico de 10s)
-        self.plot_sdppg = self.graficos.addPlot(title="Segunda Derivada (SDPPG) y Puntos Fiduciarios")
-        self.plot_sdppg.showGrid(x=True, y=True)
-        self.curve_sdppg = self.plot_sdppg.plot(pen=pg.mkPen('c', width=2))
+    def _crear_ventana(self):
+        self.ventana = QtWidgets.QWidget()
+        self.ventana.setWindowTitle("Monitor PPG + GSR - Taller de Bioingeniería")
+        self.ventana.resize(1280, 800)
+        self.ventana.setStyleSheet("background-color: #111;")
+        raiz = QtWidgets.QHBoxLayout(self.ventana)
 
-        # Capa interactiva para dibujar los puntos (a, b, c, d, e)
-        self.puntos_fiduciarios = pg.ScatterPlotItem(size=12, pen=pg.mkPen(None))
-        self.plot_sdppg.addItem(self.puntos_fiduciarios)
+        # --- panel izquierdo -------------------------------------------------
+        izq = QtWidgets.QVBoxLayout()
+        self.lbl_bpm = self._etiqueta("Frec. cardíaca:\n-- lpm", "color: white; font-size: 26px; font-weight: bold;")
+        self.lbl_ba = self._etiqueta("b/a (mediana):\n--", "color: #4fd1c5; font-size: 20px;")
+        self.lbl_ai = self._etiqueta("AI (mediana):\n--", "color: #4fd1c5; font-size: 20px;")
+        self.lbl_edad = self._etiqueta("Edad vascular:\nEsperando basal", "color: #63b3ed; font-size: 16px;")
+        self.lbl_scl = self._etiqueta("GSR (SCL):\n-- µS", "color: #f6ad55; font-size: 20px;")
+        self.lbl_scr = self._etiqueta("SCR: --", "color: #f6ad55; font-size: 14px;")
+        self.lbl_calidad = self._etiqueta("Calidad: --", "color: #ddd; font-size: 14px;")
+        self.lbl_adq = self._etiqueta("Adquisición: sin conexión", "color: #fc8181; font-size: 13px;")
+        for w in (self.lbl_bpm, self.lbl_ba, self.lbl_ai, self.lbl_edad, self.lbl_scl, self.lbl_scr,
+                  self.lbl_calidad, self.lbl_adq):
+            izq.addWidget(w)
+        izq.addSpacing(10)
 
-        # Búfer interno exclusivo para el osciloscopio rápido
-        self.tamano_buffer_rt = 750
-        self.datos_rt_raw = np.zeros(self.tamano_buffer_rt)
+        self.btn_comenzar = QtWidgets.QPushButton("COMENZAR PRUEBA")
+        self.btn_comenzar.setStyleSheet("background-color: #2f855a; color: white; padding: 8px; font-weight: bold;")
+        self.btn_comenzar.clicked.connect(self._al_comenzar)
+        self.btn_finalizar = QtWidgets.QPushButton("FINALIZAR PRUEBA")
+        self.btn_finalizar.setStyleSheet("background-color: #c53030; color: white; padding: 8px; font-weight: bold;")
+        self.btn_finalizar.setEnabled(False)
+        self.btn_finalizar.clicked.connect(self._al_finalizar)
+        izq.addWidget(self.btn_comenzar)
+        izq.addWidget(self.btn_finalizar)
+        izq.addSpacing(10)
 
-        self.win.show()
+        self.lbl_fase = self._etiqueta("Fase: Inactivo", "color: #ecc94b; font-size: 15px; font-weight: bold;")
+        izq.addWidget(self.lbl_fase)
+        self.btns_fase = {}
+        for nombre, _ in config.PROTOCOLO:
+            b = QtWidgets.QPushButton(nombre)
+            b.setEnabled(False)
+            b.setStyleSheet("padding: 6px;")
+            b.clicked.connect(lambda _checked=False, n=nombre: self._cambiar_fase(n))
+            self.btns_fase[nombre] = b
+            izq.addWidget(b)
+        izq.addStretch(1)
+        raiz.addLayout(izq, 1)
 
-    def iniciar_prueba(self):
-        # Abrimos la planilla médica
-        formulario = FormularioMedico(self.win)
-        if formulario.exec_(): # Si el usuario presiona "Guardar"
-            self.datos_medicos = formulario.obtener_datos()
-        else:
-            return # Si cierra la ventana sin guardar, cancelamos el inicio
+        # --- gráficos ---------------------------------------------------------
+        self.win = pg.GraphicsLayoutWidget()
+        raiz.addWidget(self.win, 4)
 
-        # Actualizamos variables y la interfaz
+        self.p_rt = self.win.addPlot(title="PPG en tiempo real (últimos 5 s, sin componente continua)")
+        self.c_rt = self.p_rt.plot(pen=pg.mkPen("y", width=1.5))
+        self.p_rt.setLabel("bottom", "Tiempo", units="s")
+        self.win.nextRow()
+        self.p_gsr = self.win.addPlot(title="Conductancia de la piel (últimos 30 s)")
+        self.c_gsr = self.p_gsr.plot(pen=pg.mkPen("#f6ad55", width=1.5))
+        self.p_gsr.setLabel("left", "µS")
+        self.p_gsr.setLabel("bottom", "Tiempo", units="s")
+        self.win.nextRow()
+        self.p_filt = self.win.addPlot(title="PPG filtrado (ventana de análisis)")
+        self.c_filt = self.p_filt.plot(pen=pg.mkPen("g", width=1.5))
+        self.p_filt.setLabel("bottom", "Tiempo", units="s")
+        self.win.nextRow()
+        self.p_sd = self.win.addPlot(title="Segunda derivada (SDPPG) y puntos a-e de latidos válidos")
+        self.c_sd = self.p_sd.plot(pen=pg.mkPen("c", width=1.2))
+        self.sc_sd = pg.ScatterPlotItem(size=9, pen=pg.mkPen(None))
+        self.p_sd.addItem(self.sc_sd)
+        self.p_sd.setLabel("bottom", "Tiempo", units="s")
+
+    # ---------------------------------------------------------------- sesión y fases
+    def _al_comenzar(self):
+        dlg = FormularioVoluntario(self.ventana)
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        datos = dlg.obtener_datos()
+        try:
+            if self.on_comenzar:
+                self.on_comenzar(datos)
+        except ValueError as exc:
+            QtWidgets.QMessageBox.warning(self.ventana, "No se pudo iniciar", str(exc))
+            return
         self.is_recording = True
-        self.fase_actual = "Inactivo"
-        self.lbl_estado.setText("ESTADO: GRABANDO...")
-        self.lbl_estado.setStyleSheet("color: #2ecc71; font-weight: bold; font-size: 14pt; padding: 5px;")
-        
         self.btn_comenzar.setEnabled(False)
         self.btn_finalizar.setEnabled(True)
-        
-        # Habilitar los botones de fases y resetearlos
-        for btn in self.fases_botones.values():
-            btn.setChecked(False)
-            btn.setEnabled(True)
+        self._cambiar_fase(config.PROTOCOLO[0][0], confirmar=False)
 
-    def detener_prueba(self):
+    def _al_finalizar(self):
         self.is_recording = False
-        self.fase_actual = "Inactivo"
-        self.lbl_estado.setText("ESTADO: FINALIZADO")
-        self.lbl_estado.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 14pt; padding: 5px;")
-        
-        self.btn_comenzar.setEnabled(True)
+        self.fase_actual = config.FASE_INACTIVA
         self.btn_finalizar.setEnabled(False)
-        
-        # Deshabilitar los botones de fases
-        for btn in self.fases_botones.values():
-            btn.setChecked(False)
-            btn.setEnabled(False)
+        self.btn_comenzar.setEnabled(True)
+        for b in self.btns_fase.values():
+            b.setEnabled(False)
+        if self.on_finalizar:
+            self.on_finalizar()
+        self.lbl_fase.setText("Fase: Inactivo")
 
-    def seleccionar_fase(self, nombre_fase, boton):
-        self.fase_actual = nombre_fase
-        # Desmarcamos los demás botones
-        for nom, btn in self.fases_botones.items():
-            if nom != nombre_fase:
-                btn.setChecked(False)
-                
-        # Marcamos y deshabilitamos el presionado para evitar clics dobles accidentales
-        boton.setChecked(True)
-        boton.setEnabled(False)
+    def _cambiar_fase(self, nombre, confirmar=True):
+        """Avanza a la fase `nombre`. Pide confirmación si la fase anterior no cumplió su duración mínima."""
+        if not self.is_recording:
+            return
+        previa = self.fase_actual
+        minimo = self._duracion_min.get(previa)
+        if confirmar and minimo:
+            transcurrido = time.monotonic() - self._t_inicio_fase
+            if transcurrido < minimo:
+                r = QtWidgets.QMessageBox.question(
+                    self.ventana, "Fase incompleta",
+                    f"'{previa}' lleva {transcurrido:.0f} s de los {minimo} s previstos.\n¿Pasar a '{nombre}' igual?")
+                if r != QtWidgets.QMessageBox.StandardButton.Yes:
+                    return
+        self.fase_actual = nombre
+        self._t_inicio_fase = time.monotonic()
+        orden = [n for n, _ in config.PROTOCOLO]
+        for n, b in self.btns_fase.items():
+            b.setEnabled(orden.index(n) > orden.index(nombre))     # solo se puede avanzar
+        self._actualizar_cuenta()
 
-    def actualizar_tiempo_real(self, ppg_raw, gsr_microsiemens=0.0):
-        self.datos_rt_raw[:-1] = self.datos_rt_raw[1:]
-        self.datos_rt_raw[-1] = ppg_raw
-        self.curve_raw.setData(self.datos_rt_raw)
+    def _actualizar_cuenta(self):
+        if not self.is_recording:
+            return
+        t = time.monotonic() - self._t_inicio_fase
+        minimo = self._duracion_min.get(self.fase_actual, 0)
+        color = "#68d391" if t >= minimo else "#ecc94b"            # verde al cumplir el mínimo
+        self.lbl_fase.setStyleSheet(f"color: {color}; font-size: 15px; font-weight: bold;")
+        self.lbl_fase.setText(f"{self.fase_actual}\n{t:.0f} s / {minimo} s")
 
-    def actualizar_procesado(self, ppg_filtrado, sdppg, ratio_ba, ai, scl, puntos_x, puntos_y, colores, bpm):
-        if ppg_filtrado is not None and sdppg is not None:
-            self.curve_filt.setData(ppg_filtrado)
-            self.curve_sdppg.setData(sdppg)
+    # ---------------------------------------------------------------- actualización de datos
+    def set_estado_adquisicion(self, ok, texto):
+        color = "#68d391" if ok else "#fc8181"
+        self.lbl_adq.setStyleSheet(f"color: {color}; font-size: 13px;")
+        self.lbl_adq.setText(f"Adquisición: {texto}")
 
-        if puntos_x is not None and puntos_y is not None and colores is not None:
-            self.puntos_fiduciarios.setData(x=puntos_x, y=puntos_y, brush=colores)
-        else:
-            self.puntos_fiduciarios.clear()
+    def actualizar_tiempo_real(self, ppg_ac, gsr_uS, fs=config.FS):
+        """Curvas en vivo (se llama ~25 veces por segundo desde main.py)."""
+        if len(ppg_ac):
+            self.c_rt.setData(np.arange(-len(ppg_ac), 0) / fs, ppg_ac)
+        if len(gsr_uS):
+            self.c_gsr.setData(np.arange(-len(gsr_uS), 0) / fs, gsr_uS)
+        self.lbl_edad.setText(f"Edad vascular:\n{self.edad_vascular_texto}")
 
-        if ratio_ba is not None and ai is not None and bpm is not None:
-            # Lógica visual para la Edad Vascular
-            if self.edad_vascular_fija is not None:
-                texto_edad = f"<span style='font-size: 26pt; color: #00FFFF;'>{self.edad_vascular_fija:.1f} años</span>"
-            else:
-                texto_edad = f"<span style='font-size: 14pt; color: #aaaaaa;'>Calculando basal...</span>"
+    @staticmethod
+    def _fmt(v, formato):
+        return "--" if v is None or not np.isfinite(v) else format(v, formato)
 
-            texto = (
-                f"<b style='color: #FFFFFF; font-size: 16pt;'>Frec. Cardíaca:</b><br>"
-                f"<span style='font-size: 32pt; color: #FFFFFF;'>{bpm:.0f} BPM</span><br><br><br>"
+    def mostrar_ventana(self, res, fs=config.FS):
+        """Actualiza paneles y gráficos con el resultado de una ventana de 10 s."""
+        self.lbl_bpm.setText(f"Frec. cardíaca:\n{self._fmt(res['bpm'], '.0f')} lpm")
+        self.lbl_ba.setText(f"b/a (mediana):\n{self._fmt(res['ba_med'], '+.2f')}")
+        self.lbl_ai.setText(f"AI (mediana):\n{self._fmt(res['ai_med'], '+.2f')}")
+        self.lbl_scl.setText(f"GSR (SCL):\n{self._fmt(res['scl_uS'], '.2f')} µS")
+        self.lbl_scr.setText(f"SCR: {res['scr_n']} picos, máx {self._fmt(res['scr_amp_uS'], '.2f')} µS")
 
-                f"<b style='color: #00FF00; font-size: 16pt;'>Rigidez (b/a):</b><br>"
-                f"<span style='font-size: 26pt; color: #00FF00;'>{ratio_ba:.3f}</span><br><br><br>"
+        avisos = []
+        if not res["dedo_ok"]:
+            avisos.append("SIN DEDO / señal débil")
+        elif not res["resumen_ok"]:
+            avisos.append("señal ruidosa: ventana descartada")
+        if not res["contacto_ok"]:
+            avisos.append("GSR sin contacto")
+        if res["perdidas"]:
+            avisos.append(f"{res['perdidas']} muestras perdidas")
+        ok = not avisos
+        self.lbl_calidad.setStyleSheet(f"color: {'#68d391' if ok else '#fc8181'}; font-size: 14px;")
+        self.lbl_calidad.setText(f"Latidos válidos: {res['n_validos']}/{res['n_latidos']}"
+                                 + ("" if ok else "\n" + " · ".join(avisos)))
 
-                f"<b style='color: #00FFFF; font-size: 16pt;'>Edad Vascular:</b><br>"
-                f"{texto_edad}<br><br><br>"
+        if res["ppg_f"] is None:
+            self.c_filt.setData([], [])
+            self.c_sd.setData([], [])
+            self.sc_sd.setData([], [])
+            return
+        t = np.arange(len(res["ppg_f"])) / fs
+        self.c_filt.setData(t, res["ppg_f"])
+        self.c_sd.setData(t, res["sdppg"])
+        xs, ys, cs = res["puntos"]
+        self.sc_sd.setData(x=xs, y=ys, brush=[pg.mkBrush(c) for c in cs])
 
-                f"<b style='color: #FFA500; font-size: 16pt;'>GSR (SCL):</b><br>"
-                f"<span style='font-size: 26pt; color: #FFA500;'>{scl:.2f} µS</span>"
-            )
-            self.panel_texto.setText(texto)
-
-    def procesar_eventos(self):
-        self.app.processEvents()
+    # ---------------------------------------------------------------- bucle de la aplicación
+    def ejecutar(self):
+        ejecutar = getattr(self.app, "exec_", None) or self.app.exec
+        return ejecutar()
