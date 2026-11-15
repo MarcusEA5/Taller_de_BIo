@@ -88,10 +88,8 @@ GSR_CONTACTO_MIN = 0.80    # Fracción mínima de muestras válidas en la ventan
 # VALORES PROVISORIOS: acordarlos con el asesor y fijarlos en el protocolo.
 PROTOCOLO = [
     ("1. Reposo Basal", 180),
-    ("2. Test Stroop", 180),
-    ("3. Pausa", 120),
-    ("4. Aim Trainer", 180),
-    ("5. Recuperación", 180),
+    ("2. Test Stroop", 120),
+    ("5. Recuperación", 300),
 ]
 FASE_BASAL = "1. Reposo Basal"
 FASE_INACTIVA = "Inactivo"
@@ -104,5 +102,5 @@ FASE_TRANSICION = "Transicion"   # Ventanas que cruzan dos fases: no entran en e
 # NO está validada para este sensor/filtro. Mientras no se calibre con
 # voluntarios de distintas edades, no se muestra en pantalla.
 EDAD_TAKAZAWA = (0.023, -1.515)
-MOSTRAR_EDAD_VASCULAR = False
+MOSTRAR_EDAD_VASCULAR = True
 MIN_LATIDOS_EDAD = 60

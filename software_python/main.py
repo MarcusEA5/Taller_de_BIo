@@ -55,7 +55,7 @@ def main():
 
     timer = QtCore.QTimer()
     timer.timeout.connect(tick)
-    timer.start(40)
+    timer.start(8)  # 5 ms = 200 Hz, suficiente para drenar la cola sin que se llene
 
     def al_salir():
         lector.detener()

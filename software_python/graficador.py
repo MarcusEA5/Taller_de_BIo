@@ -30,6 +30,31 @@ class FormularioVoluntario(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Planilla del voluntario")
+        # --- AGREGAR ESTE BLOQUE PARA FORZAR COLORES CLAROS SOBRE FONDO OSCURO ---
+        self.setStyleSheet("""
+            QDialog { background-color: #2d3748; }
+            QLabel { color: #edf2f7; font-size: 13px; }
+            QLineEdit, QSpinBox, QComboBox { 
+                background-color: #1a202c; 
+                color: #ffffff; 
+                border: 1px solid #4a5568; 
+                border-radius: 3px;
+                padding: 4px; 
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1a202c;
+                color: #ffffff;
+                selection-background-color: #4a5568;
+            }
+            QCheckBox { color: #edf2f7; }
+            QPushButton { 
+                background-color: #4a5568; 
+                color: white; 
+                padding: 6px; 
+                border-radius: 3px; 
+            }
+            QPushButton:hover { background-color: #718096; }
+        """)
         lay = QtWidgets.QFormLayout(self)
 
         self.f_codigo = QtWidgets.QLineEdit()
@@ -182,10 +207,31 @@ class Graficador:
         for nombre, _ in config.PROTOCOLO:
             b = QtWidgets.QPushButton(nombre)
             b.setEnabled(False)
-            b.setStyleSheet("padding: 6px;")
+            self.btns_fase = {}
+        for nombre, _ in config.PROTOCOLO:
+            b = QtWidgets.QPushButton(nombre)
+            b.setEnabled(False)
+            
+            b.setStyleSheet("""
+                QPushButton {
+                    background-color: #3182ce;
+                    color: white;
+                    padding: 8px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:disabled {
+                    background-color: #1a202c;
+                    color: #a0aec0;
+                    border: 1px solid #4a5568;
+                }
+            """)
+            # -------------------------------------------------------
+            
             b.clicked.connect(lambda _checked=False, n=nombre: self._cambiar_fase(n))
             self.btns_fase[nombre] = b
             izq.addWidget(b)
+
         izq.addStretch(1)
         raiz.addLayout(izq, 1)
 
