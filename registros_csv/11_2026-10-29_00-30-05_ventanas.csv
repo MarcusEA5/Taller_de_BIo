@@ -1,6 +1,0 @@
-﻿n_fin,t_fin_s,fase,dedo_ok,contacto_ok,n_latidos,n_validos,bpm,ba_med,ai_med,ba_iqr,ai_iqr,scl_uS,scr_n,scr_amp_uS,perdidas
-98385,491.925,Transicion,False,True,0,0,,,,,,0.0231161,0,0,0
-99385,496.925,Transicion,False,True,0,0,,,,,,0.0230918,0,0,0
-100385,501.925,1. Reposo Basal,False,True,0,0,,,,,,0.0231118,0,0,0
-101385,506.925,1. Reposo Basal,False,True,0,0,,,,,,0.0231027,0,0,0
-102385,511.925,Transicion,False,True,0,0,,,,,,0.0231024,0,0,0
