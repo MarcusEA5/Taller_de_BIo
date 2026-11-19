@@ -1,19 +1,19 @@
 {
   "version_formato": 2,
-  "id_sujeto": "000",
-  "inicio": "2026-11-08T19:13:48",
+  "id_sujeto": "matias4",
+  "inicio": "2026-11-19T14:00:21",
   "planilla": {
-    "Codigo": "000",
-    "Fecha": "2026-11-08T19:13:48",
+    "Codigo": "matias4",
+    "Fecha": "2026-11-19T14:00:21",
     "Edad": 25,
     "Sexo": "Masculino",
     "Mano_dominante": "Derecha",
     "Cafeina": "Hoy, hace menos de 3 h",
     "Tabaco": "No fuma",
     "Ejercicio": "Sí, hace más de 3 h",
-    "Ultima_comida": "Ayuno de más de 3 h",
-    "Sueno": "Entre 5 y 7 h",
-    "Medicacion_cardiovascular": "Sí",
+    "Ultima_comida": "Comió hace menos de 3 h",
+    "Sueno": "Más de 7 h",
+    "Medicacion_cardiovascular": "No",
     "Antecedentes_cardiovasculares": "No",
     "PA_sistolica": null,
     "PA_diastolica": null,
@@ -73,19 +73,11 @@
       ],
       [
         "2. Test Stroop",
-        180
-      ],
-      [
-        "3. Pausa",
         120
       ],
       [
-        "4. Aim Trainer",
-        180
-      ],
-      [
         "5. Recuperación",
-        180
+        300
       ]
     ],
     "FASE_BASAL": "1. Reposo Basal",
@@ -99,11 +91,11 @@
     "MIN_LATIDOS_EDAD": 60
   },
   "cierre": {
-    "fin": "2026-11-08T19:16:04",
+    "fin": "2026-11-19T14:11:42",
     "muestras_perdidas": 0,
-    "fs_medida_hz": 198.95593201698082,
-    "ai_basal_mediana": -0.6615006861196642,
-    "n_latidos_basales": 55,
-    "edad_vascular_takazawa_sin_validar": null
+    "fs_medida_hz": 198.9366410833606,
+    "ai_basal_mediana": -1.070625851191842,
+    "n_latidos_basales": 198,
+    "edad_vascular_takazawa_sin_validar": 19.32061516557208
   }
 }

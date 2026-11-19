@@ -1,5 +1,40 @@
 [
     {
+        "nick": "matias4",
+        "score": 20100,
+        "aciertos": 202,
+        "fallas": 2,
+        "timestamp": "2026-11-19 14:06:24"
+    },
+    {
+        "nick": "matias3",
+        "score": 20000,
+        "aciertos": 203,
+        "fallas": 6,
+        "timestamp": "2026-11-19 13:40:27"
+    },
+    {
+        "nick": "matias1",
+        "score": 19700,
+        "aciertos": 197,
+        "fallas": 0,
+        "timestamp": "2026-11-19 13:14:27"
+    },
+    {
+        "nick": "matias5",
+        "score": 19450,
+        "aciertos": 196,
+        "fallas": 3,
+        "timestamp": "2026-11-19 14:20:59"
+    },
+    {
+        "nick": "matias2",
+        "score": 18850,
+        "aciertos": 194,
+        "fallas": 11,
+        "timestamp": "2026-11-19 13:28:19"
+    },
+    {
         "nick": "000",
         "score": 17400,
         "aciertos": 176,
