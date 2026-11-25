@@ -68,3 +68,37 @@ def analizar_ventana(g_uS, fs=config.FS):
     picos, props = find_peaks(lp, prominence=config.SCR_PROMINENCIA_uS)
     amp = float(props["prominences"].max()) if len(picos) else 0.0
     return dict(contacto_ok=True, scl_uS=float(np.median(lp)), scr_n=int(len(picos)), scr_amp_uS=amp)
+
+"Código de prueba para ejecutar una reducción en la frecuencia de muestreo "
+"y normalización global de la señal GSR completa de un voluntario."
+"Al final no se usa asi que se puede borrar, pero sirve de ejemplo de cómo usar la función preprocesar_gsr_global()"
+
+
+import numpy as np
+from scipy.signal import decimate
+
+def preprocesar_gsr_global(gsr_uS_completo, fs_original=200, fs_objetivo=20):
+    """
+    Submuestrea (downsampling) y normaliza (Min-Max) la señal GSR completa de un voluntario.
+    Debe ejecutarse offline sobre la matriz completa antes de extraer métricas.
+    """
+    # 1. Submuestreo (Downsampling)
+    factor = int(fs_original / fs_objetivo) # Ej: 200 / 20 = 10
+    
+    # La función 'decimate' recorta las muestras, pero antes aplica automáticamente un 
+    # filtro pasabajos anti-aliasing. Esto cumple la misma función de suavizado 
+    # (media móvil) que propone el paper de Aqajari et al.
+    gsr_down = decimate(gsr_uS_completo, factor, ftype='iir')
+    
+    # 2. Normalización Min-Max Global
+    # Escala absolutamente toda la sesión entre 0 y 1. 
+    # Así evitas que un voluntario que suda mucho sesgue la regresión multivariable.
+    min_val = np.min(gsr_down)
+    max_val = np.max(gsr_down)
+    
+    if max_val > min_val:
+        gsr_norm = (gsr_down - min_val) / (max_val - min_val)
+    else:
+        gsr_norm = np.zeros_like(gsr_down) # Caso de señal plana fallida
+        
+    return gsr_norm, fs_objetivo

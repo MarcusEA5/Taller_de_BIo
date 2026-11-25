@@ -28,6 +28,7 @@ import pandas as pd
 import config
 import procesamiento_gsr
 from pipeline import ProcesadorStream
+from procesamiento_gsr import preprocesar_gsr_global
 
 COL_VENTANAS = ["n_fin", "t_fin_s", "fase", "dedo_ok", "contacto_ok", "n_latidos", "n_validos",
                 "bpm", "ba_med", "ai_med", "scl_uS", "scr_n", "scr_amp_uS", "perdidas"]
@@ -177,6 +178,14 @@ def main(argv=None):
         for ruta in sorted(glob.glob(os.path.join(a.grupo, "*_muestras.csv"))):
             sujeto = os.path.basename(ruta).split("_")[0]
             vent, lat = reprocesar(cargar_muestras(ruta), a.fs)
+            "."
+            min_scl = vent["scl_uS"].min()
+            max_scl = vent["scl_uS"].max()
+            if max_scl > min_scl:
+                vent["scl_uS"] = (vent["scl_uS"] - min_scl) / (max_scl - min_scl)
+        else:
+            vent["scl_uS"] = 0.0
+            "."
             res = resumen_por_fase(vent, lat)
             if sujeto in resumenes:                       # varias sesiones del mismo sujeto: se usa la última
                 print(f"AVISO: {sujeto} tiene más de una sesión; se usa {os.path.basename(ruta)}")
@@ -191,6 +200,14 @@ def main(argv=None):
     if not a.archivo:
         ap.error("indicá un archivo o --grupo CARPETA")
     vent, lat = reprocesar(cargar_muestras(a.archivo, a.legacy), a.fs)
+    "."
+    min_scl = vent["scl_uS"].min()
+    max_scl = vent["scl_uS"].max()
+    if max_scl > min_scl:
+        vent["scl_uS"] = (vent["scl_uS"] - min_scl) / (max_scl - min_scl)
+    else:
+        vent["scl_uS"] = 0.0
+    "."
     res = resumen_por_fase(vent, lat)
     _imprimir(res, f"Resumen por fase - {os.path.basename(a.archivo)}")
     salida = os.path.splitext(a.archivo)[0] + "_resumen.csv"

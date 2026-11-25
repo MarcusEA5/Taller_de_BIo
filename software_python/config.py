@@ -79,6 +79,10 @@ GSR_VEXC_V = 3.3           # Medir con tester el valor real de VEXC.
 GSR_K_DIV = 1.0            # Factor del divisor extra antes del ADC:
                            #   K = (Ra + Rb) / Rb   (K = 1.0 si no hay divisor).
                            # COMPLETAR con los valores reales del divisor armado.
+GSR_MV_MIN = 50            # Por debajo (buffer LM358 ~13-17 mV) = electrodo sin contacto -> NaN.
+GSR_MV_MAX = 2400          # Desde acá el ADC (11 dB) satura (~2,5 V) -> NaN.
+SCL_BASAL_VENTANA_S = 90   # El SCL basal de referencia = mediana de los ULTIMOS 90 s del reposo.
+SCL_BASAL_MIN_uS = 0.2     # Basal menor => sin contacto fiable: no se normaliza (NaN).
 SCR_PROMINENCIA_uS = 0.03  # Prominencia mínima para contar una SCR en la ventana.
 GSR_CONTACTO_MIN = 0.80    # Fracción mínima de muestras válidas en la ventana.
 
@@ -92,6 +96,7 @@ PROTOCOLO = [
     ("5. Recuperación", 300),
 ]
 FASE_BASAL = "1. Reposo Basal"
+FASES_COMPARAR = ["2. Test Stroop", "5. Recuperación"]   # fases que se comparan contra el basal
 FASE_INACTIVA = "Inactivo"
 FASE_TRANSICION = "Transicion"   # Ventanas que cruzan dos fases: no entran en estadística.
 
